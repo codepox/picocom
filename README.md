@@ -1,2 +1,0 @@
-# picocom-
-Picocom with timestamp 

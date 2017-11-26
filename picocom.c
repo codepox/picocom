@@ -37,11 +37,11 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <limits.h>
+#include <sys/time.h>
 
 #define _GNU_SOURCE
 #include <getopt.h>
 
-#include "split.h"
 #include "term.h"
 
 /**********************************************************************/
@@ -55,82 +55,14 @@
 #define KEY_FLOW    '\x06' /* C-f: change flowcntrl mode */ 
 #define KEY_PARITY  '\x19' /* C-y: change parity mode */ 
 #define KEY_BITS    '\x02' /* C-b: change number of databits */ 
-#define KEY_LECHO   '\x03' /* C-c: toggle local echo */ 
 #define KEY_STATUS  '\x16' /* C-v: show program option */
 #define KEY_SEND    '\x13' /* C-s: send file */
 #define KEY_RECEIVE '\x12' /* C-r: receive file */
 #define KEY_BREAK   '\x1c' /* C-\: break */
+#define KEY_TIMESTAMP   '\x09' /* C-i: timestamp */
 
 #define STO STDOUT_FILENO
 #define STI STDIN_FILENO
-
-/**********************************************************************/
-
-/* implemented caracter mappings */
-#define M_CRLF   (1 << 0) /* map CR  --> LF */
-#define M_CRCRLF (1 << 1) /* map CR  --> CR + LF */
-#define M_IGNCR  (1 << 2) /* map CR  --> <nothing> */
-#define M_LFCR   (1 << 3) /* map LF  --> CR */
-#define M_LFCRLF (1 << 4) /* map LF  --> CR + LF */
-#define M_IGNLF  (1 << 5) /* map LF  --> <nothing> */
-#define M_DELBS  (1 << 6) /* map DEL --> BS */
-#define M_BSDEL  (1 << 7) /* map BS  --> DEL */
-#define M_NFLAGS 8
-
-/* default character mappings */
-#define M_I_DFL 0
-#define M_O_DFL 0
-#define M_E_DFL (M_DELBS | M_CRCRLF)
-
-/* character mapping names */
-struct map_names_s {
-	char *name;
-	int flag;
-} map_names[] = {
-	{ "crlf", M_CRLF },
-	{ "crcrlf", M_CRCRLF },
-	{ "igncr", M_IGNCR },
-    { "lfcr", M_LFCR },
-	{ "lfcrlf", M_LFCRLF },
-	{ "ignlf", M_IGNLF },
-	{ "delbs", M_DELBS },
-	{ "bsdel", M_BSDEL },
-	/* Sentinel */
-	{ NULL, 0 } 
-};
-
-int
-parse_map (char *s)
-{
-	char *m, *t;
-	int f, flags, i;
-
-	flags = 0;
-	while ( (t = strtok(s, ", \t")) ) {
-		for (i=0; (m = map_names[i].name); i++) {
-			if ( ! strcmp(t, m) ) {
-				f = map_names[i].flag;
-				break;
-			}
-		}
-		if ( m ) flags |= f;
-		else { flags = -1; break; }
-		s = NULL;
-	}
-
-	return flags;
-}
-
-void
-print_map (int flags)
-{
-	int i;
-
-	for (i = 0; i < M_NFLAGS; i++)
-		if ( flags & (1 << i) )
-			printf("%s,", map_names[i].name);
-	printf("\n");
-}
 
 /**********************************************************************/
 
@@ -142,7 +74,6 @@ struct {
 	enum parity_e parity;
 	char *parity_str;
 	int databits;
-	int lecho;
 	int noinit;
 	int noreset;
 #ifdef UUCP_LOCK_DIR
@@ -151,29 +82,22 @@ struct {
 	unsigned char escape;
 	char send_cmd[128];
 	char receive_cmd[128];
-	int imap;
-	int omap;
-	int emap;
 } opts = {
 	.port = "",
-	.baud = 9600,
+	.baud = 115200,
 	.flow = FC_NONE,
 	.flow_str = "none",
 	.parity = P_NONE,
 	.parity_str = "none",
 	.databits = 8,
-	.lecho = 0,
 	.noinit = 0,
 	.noreset = 0,
 #ifdef UUCP_LOCK_DIR
 	.nolock = 0,
 #endif
 	.escape = '\x01',
-	.send_cmd = "sz -vv",
-	.receive_cmd = "rz -vv",
-	.imap = M_I_DFL,
-	.omap = M_O_DFL,
-	.emap = M_E_DFL
+	.send_cmd = "ascii_xfr -s -v -l10",
+	.receive_cmd = "rz -vv"
 };
 
 int tty_fd;
@@ -338,8 +262,8 @@ fd_readline (int fdi, int fdo, char *b, int bsz)
 	unsigned char c;
 	unsigned char *bp, *bpe;
 	
-	bp = (unsigned char *)b;
-	bpe = (unsigned char *)b + bsz - 1;
+	bp = b;
+	bpe = b + bsz - 1;
 
 	while (1) {
 		r = read(fdi, &c, 1);
@@ -371,76 +295,6 @@ out:
 
 #undef cput
 
-/* maximum number of chars that can replace a single characted
-   due to mapping */
-#define M_MAXMAP 4
-
-int
-do_map (char *b, int map, char c)
-{
-	int n;
-
-	switch (c) {
-	case '\x7f':
-		/* DEL mapings */
-		if ( map & M_DELBS ) {
-			b[0] = '\x08'; n = 1;
-		} else {
-			b[0] = c; n = 1;
-		}
-		break;
-	case '\x08':
-		/* BS mapings */
-		if ( map & M_BSDEL ) {
-			b[0] = '\x7f'; n = 1;
-		} else {
-			b[0] = c; n = 1;
-		}
-		break;
-	case '\x0d':
-		/* CR mappings */
-		if ( map & M_CRLF ) {
-			b[0] = '\x0a'; n = 1;
-		} else if ( map & M_CRCRLF ) {
-			b[0] = '\x0d'; b[1] = '\x0a'; n = 2;
-		} else if ( map & M_IGNCR ) {
-			n = 0;
-		} else {
-			b[0] = c; n = 1;
-		}
-		break;
-	case '\x0a':
-		/* LF mappings */
-		if ( map & M_LFCR ) {
-			b[0] = '\x0d'; n = 1;
-		} else if ( map & M_LFCRLF ) {
-			b[0] = '\x0d'; b[1] = '\x0a'; n = 2;
-		} else if ( map & M_IGNLF ) {
-			n = 0;
-		} else {
-			b[0] = c; n = 1;
-		}
-		break;
-	default:
-		b[0] = c; n = 1;
-		break;
-	}
-
-	return n;
-}
-
-void 
-map_and_write (int fd, int map, char c)
-{
-	char b[M_MAXMAP];
-	int n;
-		
-	n = do_map(b, map, c);
-	if ( n )
-		if ( writen_ni(fd, b, n) < n )
-			fatal("write to stdout failed: %s", strerror(errno));		
-}
-
 /**********************************************************************/
 
 int
@@ -452,13 +306,8 @@ baud_up (int baud)
 		baud = 57600;
 	else	
 		baud = baud * 2;
-#ifndef HIGH_BAUD
 	if ( baud > 115200 )
 		baud = 115200;
-#else
-	if ( baud > 921600 )
-		baud = 921600;
-#endif
 
 	return baud;
 }
@@ -466,13 +315,8 @@ baud_up (int baud)
 int
 baud_down (int baud)
 {
-#ifndef HIGH_BAUD
 	if ( baud > 115200 )
 		baud = 115200;
-#else
-	if ( baud > 921600 )
-		baud = 921600;
-#endif
 	else if ( baud == 57600 )
 		baud = 38400;
 	else
@@ -545,9 +389,6 @@ bits_next (int bits)
 
 /**********************************************************************/
 
-#define RUNCMD_ARGS_MAX 32
-#define RUNCMD_EXEC_FAIL 126
-
 void
 child_empty_handler (int signum)
 {
@@ -568,7 +409,7 @@ establish_child_signal_handlers (void)
 }
 
 int
-run_cmd(int fd, const char *cmd, const char *args_extra)
+run_cmd(int fd, ...)
 {
 	pid_t pid;
 	sigset_t sigm, sigm_old;
@@ -604,10 +445,9 @@ run_cmd(int fd, const char *cmd, const char *args_extra)
 		}
 	} else {
 		/* child: external program */
-		long fl;
-		int argc;
-		char *argv[RUNCMD_ARGS_MAX + 1];
 		int r;
+		long fl;
+		char cmd[512];
 
 		establish_child_signal_handlers();
 		sigprocmask(SIG_SETMASK, &sigm_old, NULL);
@@ -624,29 +464,30 @@ run_cmd(int fd, const char *cmd, const char *args_extra)
 		close(STO);
 		dup2(fd, STI);
 		dup2(fd, STO);
-		/* build command arguments vector */
-		argc = 0;
-		r = split_quoted(cmd, &argc, argv, RUNCMD_ARGS_MAX);
-		if ( r < 0 ) {
-			fd_printf(STDERR_FILENO, "Cannot parse command\n");
-			exit(RUNCMD_EXEC_FAIL);
+		{
+			/* build command-line */
+			char *c, *ce;
+			const char *s;
+			int n;
+			va_list vls;
+			
+			c = cmd;
+			ce = cmd + sizeof(cmd) - 1;
+			va_start(vls, fd);
+			while ( (s = va_arg(vls, const char *)) ) {
+				n = strlen(s);
+				if ( c + n + 1 >= ce ) break;
+				memcpy(c, s, n); c += n;
+				*c++ = ' ';
+			}
+			va_end(vls);
+			*c = '\0';
 		}
-		r = split_quoted(args_extra, &argc, argv, RUNCMD_ARGS_MAX);
-		if ( r < 0 ) {
-			fd_printf(STDERR_FILENO, "Cannot parse extra args\n");
-			exit(RUNCMD_EXEC_FAIL);
- 		}
-		if ( argc < 1 ) {
-			fd_printf(STDERR_FILENO, "No command given\n");
-			exit(RUNCMD_EXEC_FAIL);
-		}
-		argv[argc] = NULL;
-
 		/* run extenral command */
-		fd_printf(STDERR_FILENO, "$ %s %s\n", cmd, args_extra);
-		execvp(argv[0], argv);
-		fd_printf(STDERR_FILENO, "exec: %s\n", strerror(errno));
-		exit(RUNCMD_EXEC_FAIL);
+		fd_printf(STDERR_FILENO, "%s\n", cmd);
+		r = system(cmd);
+		if ( WIFEXITED(r) ) exit(WEXITSTATUS(r));
+		else exit(128);
 	}
 }
 
@@ -660,6 +501,11 @@ struct tty_q {
 } tty_q;
 
 /**********************************************************************/
+#define TTY_TIME_RESET		2
+#define TTY_TIME_DISPLAY	1
+#define TTY_TIME_NONE		0
+int tty_time = TTY_TIME_RESET;
+int tty_time_enable = 0;
 
 void
 loop(void)
@@ -675,6 +521,9 @@ loop(void)
 	char fname[128];
 	int r, n;
 	unsigned char c;
+	struct timeval tv,tv_ref;
+	unsigned int diff_sec,diff_msec;
+	char s[32];
 
 
 	tty_q.len = 0;
@@ -688,7 +537,7 @@ loop(void)
 		FD_SET(tty_fd, &rdset);
 		if ( tty_q.len ) FD_SET(tty_fd, &wrset);
 
-		if (select(tty_fd + 1, &rdset, &wrset, NULL, NULL) < 0)
+		if (select(FD_SETSIZE, &rdset, &wrset, NULL, NULL) < 0)
 			fatal("select failed: %d : %s", errno, strerror(errno));
 
 		if ( FD_ISSET(STI, &rdset) ) {
@@ -698,15 +547,10 @@ loop(void)
 			do {
 				n = read(STI, &c, 1);
 			} while (n < 0 && errno == EINTR);
-			if (n == 0) {
+			if (n == 0)
 				fatal("stdin closed");
-			} else if (n < 0) {
-				/* is this really necessary? better safe than sory! */
-				if ( errno != EAGAIN && errno != EWOULDBLOCK ) 
-					fatal("read from stdin failed: %s", strerror(errno));
-				else
-					goto skip_proc_STI;
-			}
+			else if (n < 0)
+				fatal("read from stdin failed: %s", strerror(errno));
 
 			switch (state) {
 
@@ -714,13 +558,9 @@ loop(void)
 				if ( c == opts.escape ) {
 					state = ST_TRANSPARENT;
 					/* pass the escape character down */
-					if (tty_q.len + M_MAXMAP <= TTY_Q_SZ) {
-						n = do_map((char *)tty_q.buff + tty_q.len, 
-								   opts.omap, c);
-						tty_q.len += n;
-						if ( opts.lecho ) 
-							map_and_write(STO, opts.emap, c);
-					} else 
+					if (tty_q.len <= TTY_Q_SZ)
+						tty_q.buff[tty_q.len++] = c;
+					else
 						fd_printf(STO, "\x07");
 					break;
 				}
@@ -741,6 +581,7 @@ loop(void)
 					fd_printf(STO, "*** parity: %s\r\n", opts.parity_str);
 					fd_printf(STO, "*** databits: %d\r\n", opts.databits);
 					fd_printf(STO, "*** dtr: %s\r\n", dtr_up ? "up" : "down");
+					fd_printf(STO, "*** timestamp: %s\r\n", tty_time_enable ? "on" : "off");
 					break;
 				case KEY_PULSE:
 					fd_printf(STO, "\r\n*** pulse DTR ***\r\n");
@@ -799,11 +640,6 @@ loop(void)
 					fd_printf(STO, "\r\n*** databits: %d ***\r\n", 
 							  opts.databits);
 					break;
-				case KEY_LECHO:
-					opts.lecho = ! opts.lecho;
-					fd_printf(STO, "\r\n*** local echo: %s ***\r\n", 
-							  opts.lecho ? "yes" : "no");
-					break;
 				case KEY_SEND:
 					fd_printf(STO, "\r\n*** file: ");
 					r = fd_readline(STI, STO, fname, sizeof(fname));
@@ -811,7 +647,7 @@ loop(void)
 					if ( r < -1 && errno == EINTR ) break;
 					if ( r <= -1 )
 						fatal("cannot read filename: %s", strerror(errno));
-					run_cmd(tty_fd, opts.send_cmd, fname);
+					run_cmd(tty_fd, opts.send_cmd, fname, NULL);
 					break;
 				case KEY_RECEIVE:
 					fd_printf(STO, "*** file: ");
@@ -821,7 +657,7 @@ loop(void)
 					if ( r <= -1 )
 						fatal("cannot read filename: %s", strerror(errno));
 					if ( fname[0] )
-						run_cmd(tty_fd, opts.receive_cmd, fname);
+						run_cmd(tty_fd, opts.send_cmd, fname, NULL);
 					else
 						run_cmd(tty_fd, opts.receive_cmd, NULL);
 					break;
@@ -829,6 +665,16 @@ loop(void)
 					term_break(tty_fd);
 					fd_printf(STO, "\r\n*** break sent ***\r\n");
 					break;
+				case KEY_TIMESTAMP:
+					if(tty_time_enable) {
+						tty_time_enable = 0;
+						fd_printf(STO, "\r\n*** Time Stamp Disable ***\r\n");
+					} else {
+						tty_time_enable = 1;
+						tty_time = TTY_TIME_RESET;
+						fd_printf(STO, "\r\n*** Time Stamp Enable ***\r\n");
+					}
+                    break;
 				default:
 					break;
 				}
@@ -838,13 +684,9 @@ loop(void)
 				if ( c == opts.escape ) {
 					state = ST_COMMAND;
 				} else {
-					if (tty_q.len + M_MAXMAP <= TTY_Q_SZ) {
-						n = do_map((char *)tty_q.buff + tty_q.len, 
-								   opts.omap, c);
-						tty_q.len += n;
-						if ( opts.lecho ) 
-							map_and_write(STO, opts.emap, c);
-					} else 
+					if (tty_q.len <= TTY_Q_SZ)
+						tty_q.buff[tty_q.len++] = c;
+					else
 						fd_printf(STO, "\x07");
 				}
 				break;
@@ -854,7 +696,6 @@ loop(void)
 				break;
 			}
 		}
-	skip_proc_STI:
 
 		if ( FD_ISSET(tty_fd, &rdset) ) {
 
@@ -863,14 +704,43 @@ loop(void)
 			do {
 				n = read(tty_fd, &c, 1);
 			} while (n < 0 && errno == EINTR);
-			if (n == 0) {
+			if (n == 0)
 				fatal("term closed");
-			} else if ( n < 0 ) {
-				if ( errno != EAGAIN && errno != EWOULDBLOCK )
-					fatal("read from term failed: %s", strerror(errno));
-			} else {
-				map_and_write(STO, opts.imap, c);
+			else if ( n < 0 )
+				fatal("read from term failed: %s", strerror(errno));
+
+			if(tty_time_enable && tty_time) {
+                gettimeofday(&tv,NULL);
+				if(tty_time == TTY_TIME_RESET) {
+					tv_ref = tv;
+				}
+
+				if((c != '\n') && (c != '\r')) {
+					diff_sec = tv.tv_sec - tv_ref.tv_sec;
+					if(tv.tv_usec/1000 < tv_ref.tv_usec/1000)
+					{
+						diff_sec--;
+						diff_msec = (1000 + (tv.tv_usec/1000)) - (tv_ref.tv_usec/1000);
+					}
+					else
+					{
+						diff_msec = (tv.tv_usec - tv_ref.tv_usec) / 1000;
+					}
+					sprintf(s,"%3d.%03d ",diff_sec%1000,diff_msec);
+					//sprintf(s,"%03d.%04d",(int)(tv.tv_sec-tty_timeref),(int)(tv.tv_usec/1000));
+					write(STO, s, 8);
+					tty_time = TTY_TIME_NONE;
+				}
 			}
+			if((c == '\n') || (c == '\r')) tty_time = TTY_TIME_DISPLAY;
+
+			do {
+				n = write(STO, &c, 1);
+			} while ( errno == EAGAIN 
+					  || errno == EWOULDBLOCK
+					  || errno == EINTR );
+			if ( n <= 0 )
+				fatal("write to stdout failed: %s", strerror(errno));
 		}
 
 		if ( FD_ISSET(tty_fd, &wrset) ) {
@@ -944,25 +814,13 @@ show_usage(char *name)
 	printf("  --<p>arity o (=odd) | e (=even) | n (=none)\n");
 	printf("  --<d>atabits 5 | 6 | 7 | 8\n");
 	printf("  --<e>scape <char>\n");
-	printf("  --e<c>ho\n");
 	printf("  --no<i>nit\n");
 	printf("  --no<r>eset\n");
 	printf("  --no<l>ock\n");
 	printf("  --<s>end-cmd <command>\n");
 	printf("  --recei<v>e-cmd <command>\n");
-	printf("  --imap <map> (input mappings)\n");
-	printf("  --omap <map> (output mappings)\n");
-	printf("  --emap <map> (local-echo mappings)\n");
+	printf("  --<t>imestamp\n");
 	printf("  --<h>elp\n");
-	printf("<map> is a comma-separated list of one or more of:\n");
-	printf("  crlf : map CR --> LF\n");
-	printf("  crcrlf : map CR --> CR + LF\n");
-	printf("  igncr : ignore CR\n");
-	printf("  lfcr : map LF --> CR\n");
-	printf("  lfcrlf : map LF --> CR + LF\n");
-	printf("  ignlf : ignore LF\n");
-	printf("  bsdel : map BS --> DEL\n");
-	printf("  delbs : map DEL --> BS\n");
 	printf("<?> indicates the equivalent short option.\n");
 	printf("Short options are prefixed by \"-\" instead of by \"--\".\n");
 }
@@ -976,11 +834,7 @@ parse_args(int argc, char *argv[])
 	{
 		{"receive-cmd", required_argument, 0, 'v'},
 		{"send-cmd", required_argument, 0, 's'},
-        {"imap", required_argument, 0, 'I' },
-        {"omap", required_argument, 0, 'O' },
-        {"emap", required_argument, 0, 'E' },
 		{"escape", required_argument, 0, 'e'},
-		{"echo", no_argument, 0, 'c'},
 		{"noinit", no_argument, 0, 'i'},
 		{"noreset", no_argument, 0, 'r'},
 		{"nolock", no_argument, 0, 'l'},
@@ -989,24 +843,28 @@ parse_args(int argc, char *argv[])
 		{"parity", required_argument, 0, 'p'},
 		{"databits", required_argument, 0, 'd'},
 		{"help", no_argument, 0, 'h'},
+		{"timestamp", no_argument, 0, 't'},
 		{0, 0, 0, 0}
 	};
 
 	while (1) {
 		int optionIndex = 0;
 		int c;
-		int map;
 
 		/* no default error messages printed. */
 		opterr = 0;
 
-		c = getopt_long(argc, argv, "hirlcv:s:r:e:f:b:p:d:",
+		c = getopt_long(argc, argv, "hirlts:r:e:f:b:p:d:",
 						longOptions, &optionIndex);
 
 		if (c < 0)
 			break;
 
 		switch (c) {
+		case 't':
+			tty_time_enable = 1;
+			tty_time = TTY_TIME_RESET;
+			break;
 		case 's':
 			strncpy(opts.send_cmd, optarg, sizeof(opts.send_cmd));
 			opts.send_cmd[sizeof(opts.send_cmd) - 1] = '\0';
@@ -1015,24 +873,6 @@ parse_args(int argc, char *argv[])
 			strncpy(opts.receive_cmd, optarg, sizeof(opts.receive_cmd));
 			opts.receive_cmd[sizeof(opts.receive_cmd) - 1] = '\0';
 			break;
-		case 'I':
-			map = parse_map(optarg);
-			if (map >= 0) opts.imap = map;
-			else fprintf(stderr, "Invalid imap, ignored\n");
-			break;
-		case 'O':
-			map = parse_map(optarg);
-			if (map >= 0) opts.omap = map;
-			else fprintf(stderr, "Invalid omap, ignored\n");
-			break;
-		case 'E':
-			map = parse_map(optarg);
-			if (map >= 0) opts.emap = map;
-			else fprintf(stderr, "Invalid emap, ignored\n");
-			break;
-		case 'c':
-			opts.lecho = 1;
-			break;
 		case 'i':
 			opts.noinit = 1;
 			break;
@@ -1040,12 +880,13 @@ parse_args(int argc, char *argv[])
 			opts.noreset = 1;
 			break;
 		case 'l':
-#ifdef UUCP_LOCK_DIR
 			opts.nolock = 1;
-#endif
 			break;
 		case 'e':
-			opts.escape = optarg[0] & 0x1f;
+			if ( isupper(optarg[0]) )
+				opts.escape = optarg[0] - 'A' + 1;
+			else
+				opts.escape = optarg[0] - 'a' + 1;
 			break;
 		case 'f':
 			switch (optarg[0]) {
@@ -1139,22 +980,15 @@ parse_args(int argc, char *argv[])
 	printf("parity is      : %s\n", opts.parity_str);
 	printf("databits are   : %d\n", opts.databits);
 	printf("escape is      : C-%c\n", 'a' + opts.escape - 1);
-	printf("local echo is  : %s\n", opts.lecho ? "yes" : "no");
 	printf("noinit is      : %s\n", opts.noinit ? "yes" : "no");
 	printf("noreset is     : %s\n", opts.noreset ? "yes" : "no");
-#ifdef UUCP_LOCK_DIR
 	printf("nolock is      : %s\n", opts.nolock ? "yes" : "no");
-#endif
 	printf("send_cmd is    : %s\n", opts.send_cmd);
 	printf("receive_cmd is : %s\n", opts.receive_cmd);
-	printf("imap is        : "); print_map(opts.imap);
-	printf("omap is        : "); print_map(opts.omap);
-	printf("emap is        : "); print_map(opts.emap);
 	printf("\n");
 }
 
 /**********************************************************************/
-
 
 int
 main(int argc, char *argv[])
@@ -1175,7 +1009,7 @@ main(int argc, char *argv[])
 		fatal("cannot lock %s: %s", opts.port, strerror(errno));
 #endif
 
-	tty_fd = open(opts.port, O_RDWR | O_NONBLOCK | O_NOCTTY);
+	tty_fd = open(opts.port, O_RDWR | O_NONBLOCK);
 	if (tty_fd < 0)
 		fatal("cannot open %s: %s", opts.port, strerror(errno));
 
