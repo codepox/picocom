@@ -1,0 +1,274 @@
+------------------------------------------------------------------------
+r29 | nick.patavalis@gmail.com | 2012-02-21 15:22:52 +0200 (Tue, 21 Feb 2012) | 3 lines
+Changed paths:
+   A /tags/1.7 (from /trunk:28)
+
+Tagged release 1.7
+
+
+------------------------------------------------------------------------
+r28 | nick.patavalis@gmail.com | 2012-02-21 15:19:00 +0200 (Tue, 21 Feb 2012) | 2 lines
+Changed paths:
+   D /trunk/NEWS
+
+Removed historic NEWS file
+
+------------------------------------------------------------------------
+r27 | nick.patavalis@gmail.com | 2012-02-21 15:08:18 +0200 (Tue, 21 Feb 2012) | 3 lines
+Changed paths:
+   M /trunk/CONTRIBUTORS
+
+Updated contributors
+
+
+------------------------------------------------------------------------
+r26 | nick.patavalis@gmail.com | 2012-02-21 10:53:42 +0200 (Tue, 21 Feb 2012) | 3 lines
+Changed paths:
+   M /trunk/picocom.8
+   M /trunk/picocom.8.html
+   M /trunk/picocom.8.ps
+   M /trunk/picocom.8.xml
+
+Updated manual
+
+
+------------------------------------------------------------------------
+r25 | nick.patavalis@gmail.com | 2012-02-21 08:40:56 +0200 (Tue, 21 Feb 2012) | 3 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Added O_NOCTTY when opening serial port
+
+
+------------------------------------------------------------------------
+r24 | nick.patavalis@gmail.com | 2012-02-21 08:30:08 +0200 (Tue, 21 Feb 2012) | 4 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Instead of select(FD_SETSIZE...) do select(tty_fd + 1...).
+We know that tty_fd is the numerically largest filedes.
+
+
+------------------------------------------------------------------------
+r23 | nick.patavalis@gmail.com | 2012-02-21 08:24:49 +0200 (Tue, 21 Feb 2012) | 4 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Handle the case when read(tty_fd) or read(STI) fails 
+with EAGAIN or EWOULDBLOCK
+
+
+------------------------------------------------------------------------
+r22 | nick.patavalis@gmail.com | 2012-02-21 07:42:24 +0200 (Tue, 21 Feb 2012) | 3 lines
+Changed paths:
+   M /trunk/Makefile
+
+Factor-out UUCP_LOCK_DIR in Makefile for easier overriding by builder
+
+
+------------------------------------------------------------------------
+r21 | nick.patavalis@gmail.com | 2012-02-21 07:13:24 +0200 (Tue, 21 Feb 2012) | 3 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Add conditionals to allow compile with UUCP_LOCK_DIR undefined
+
+
+------------------------------------------------------------------------
+r20 | nick.patavalis | 2010-06-24 22:54:23 +0300 (Thu, 24 Jun 2010) | 6 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Corrected typo tha caused the send command to be run instead 
+of the receive command when a filename was given.
+
+(fixes issue 5)
+
+
+------------------------------------------------------------------------
+r19 | nick.patavalis | 2010-06-24 22:50:18 +0300 (Thu, 24 Jun 2010) | 3 lines
+Changed paths:
+   M /tags/1.6/CHANGES.old
+   M /tags/1.6/picocom.c
+
+Reverted r18 which was mistakenly applied to the tag
+
+
+------------------------------------------------------------------------
+r18 | nick.patavalis | 2010-06-24 22:44:44 +0300 (Thu, 24 Jun 2010) | 6 lines
+Changed paths:
+   M /tags/1.6/picocom.c
+
+Corrected a typo that caused the send command to be run instead of 
+the receive command, if a filename was given.
+
+(fixes issue 5)
+
+
+------------------------------------------------------------------------
+r17 | nick.patavalis | 2010-06-13 00:10:22 +0300 (Sun, 13 Jun 2010) | 3 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Reverted changes to picocom.c applied, by mistake, in r16
+
+
+------------------------------------------------------------------------
+r16 | nick.patavalis | 2010-06-12 23:41:01 +0300 (Sat, 12 Jun 2010) | 3 lines
+Changed paths:
+   M /trunk/Makefile
+   M /trunk/picocom.c
+
+Incremented version to 1.7
+
+
+------------------------------------------------------------------------
+r15 | nick.patavalis | 2010-06-12 23:40:28 +0300 (Sat, 12 Jun 2010) | 3 lines
+Changed paths:
+   A /tags/1.6 (from /trunk:14)
+
+Tagged release 1.6
+
+
+------------------------------------------------------------------------
+r14 | nick.patavalis | 2010-05-29 05:47:00 +0300 (Sat, 29 May 2010) | 10 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Added features:
+
+  - Local echo
+  - Configurable input mapping (CR --> LF, DEL --> BS, etc)
+  - Configurable output mapping
+  - Configurable local-echo mapping
+
+May still need some testing...
+
+
+------------------------------------------------------------------------
+r13 | nick.patavalis | 2010-05-29 02:08:24 +0300 (Sat, 29 May 2010) | 2 lines
+Changed paths:
+   M /trunk/picocom.8
+   M /trunk/picocom.8.html
+   M /trunk/picocom.8.ps
+   M /trunk/picocom.8.xml
+
+Fixed URL in man page
+
+------------------------------------------------------------------------
+r12 | nick.patavalis | 2010-05-29 01:41:19 +0300 (Sat, 29 May 2010) | 3 lines
+Changed paths:
+   M /trunk/term.c
+
+Fixed misconception that prevented the correct setting 
+of the odd-parity mode
+
+------------------------------------------------------------------------
+r11 | nick.patavalis | 2010-05-29 01:39:52 +0300 (Sat, 29 May 2010) | 2 lines
+Changed paths:
+   M /trunk/Makefile
+
+Incremented version to 1.6
+
+------------------------------------------------------------------------
+r10 | nick.patavalis | 2010-05-28 23:04:22 +0300 (Fri, 28 May 2010) | 2 lines
+Changed paths:
+   A /tags/1.5 (from /trunk:9)
+
+Tagged 1.5 release
+
+------------------------------------------------------------------------
+r9 | nick.patavalis | 2010-05-28 04:39:32 +0300 (Fri, 28 May 2010) | 2 lines
+Changed paths:
+   M /trunk/CONTRIBUTORS
+
+Updated contributors
+
+------------------------------------------------------------------------
+r8 | nick.patavalis | 2010-05-28 04:34:18 +0300 (Fri, 28 May 2010) | 5 lines
+Changed paths:
+   M /trunk/picocom.c
+
+
+Allow non-alpha escape keys (e.g. C-])
+
+Thanks Niels Moller
+
+------------------------------------------------------------------------
+r7 | nick.patavalis | 2010-05-28 04:12:12 +0300 (Fri, 28 May 2010) | 6 lines
+Changed paths:
+   M /trunk/Makefile
+   M /trunk/picocom.c
+   M /trunk/term.c
+
+
+Enabled support for higher baudrates up to 921600. Support is
+compiled-in conditionally on the HIGH_BAUD macro.
+
+Thanks to Pavel Vymetalek
+
+------------------------------------------------------------------------
+r6 | nick.patavalis | 2010-05-28 03:42:57 +0300 (Fri, 28 May 2010) | 2 lines
+Changed paths:
+   M /trunk/Makefile
+
+Incremented version number to 1.5
+
+------------------------------------------------------------------------
+r5 | nick.patavalis | 2010-05-28 03:42:21 +0300 (Fri, 28 May 2010) | 2 lines
+Changed paths:
+   M /trunk/picocom.c
+
+Silenced compiler warning
+
+------------------------------------------------------------------------
+r4 | nick.patavalis | 2010-05-28 03:38:55 +0300 (Fri, 28 May 2010) | 5 lines
+Changed paths:
+   M /trunk/picocom.c
+   M /trunk/term.h
+
+Changed default send_cmd to "sz -vv"
+
+(fixes issue 3)
+
+
+------------------------------------------------------------------------
+r3 | nick.patavalis | 2010-05-28 03:22:25 +0300 (Fri, 28 May 2010) | 2 lines
+Changed paths:
+   D /trunk/CHANGES
+   A /trunk/CHANGES.old (from /trunk/CHANGES:2)
+
+Renamed CHANGES to CHANGES.old (change log from old repository)
+
+------------------------------------------------------------------------
+r2 | nick.patavalis | 2010-05-28 03:17:52 +0300 (Fri, 28 May 2010) | 1 line
+Changed paths:
+   A /trunk/CHANGES
+   A /trunk/CONTRIBUTORS
+   A /trunk/LICENSE.txt
+   A /trunk/Makefile
+   A /trunk/NEWS
+   A /trunk/README
+   A /trunk/TODO
+   A /trunk/pcasc
+   A /trunk/pcxm
+   A /trunk/pcym
+   A /trunk/pczm
+   A /trunk/picocom.8
+   A /trunk/picocom.8.html
+   A /trunk/picocom.8.ps
+   A /trunk/picocom.8.xml
+   A /trunk/picocom.c
+   A /trunk/term.c
+   A /trunk/term.h
+
+Imported 1.4 source
+------------------------------------------------------------------------
+r1 | (no author) | 2009-07-15 15:01:42 +0300 (Wed, 15 Jul 2009) | 1 line
+Changed paths:
+   A /branches
+   A /tags
+   A /trunk
+
+Initial directory structure.
+------------------------------------------------------------------------

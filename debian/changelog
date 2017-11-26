@@ -1,0 +1,51 @@
+picocom (1.7-2) unstable; urgency=high
+
+  * Fix CVE-2015-9059 (Closes: #863671).
+  * Add myself to Uploaders.
+  * Add Vcs fields.
+
+ -- W. Martin Borgert <debacle@debian.org>  Fri, 02 Jun 2017 22:21:14 +0000
+
+picocom (1.7-1) unstable; urgency=low
+
+  * New upstream release.  Closes: #659590.
+  * Switch to dpkg-source 3.0 (quilt) format.
+  * Bump debhelper compat to 8, switch to minimal dh-based debian/rules.
+  * Update Homepage: field.
+  * Update Standards-Version to 3.9.3; no changes required.
+
+ -- Matt Palmer <mpalmer@debian.org>  Sat, 21 Apr 2012 18:48:46 +1000
+
+picocom (1.4-3) unstable; urgency=low
+
+  * Adopted.  Closes: #452192.
+  * Dump the debian-native packaging.
+  * Fix odd parity problems.  Closes: #492695.  Thanks to Freddy Spierenburg
+    for the patch.
+
+ -- Matt Palmer <mpalmer@debian.org>  Sun, 03 Aug 2008 22:52:39 +1000
+
+picocom (1.4-2) unstable; urgency=low
+
+  * QA upload.
+  * Set Maintainer to QA Group. The previous Maintainer email is bouncing. 
+
+ -- Lucas Nussbaum <lucas@lucas-nussbaum.net>  Thu, 10 Jan 2008 09:04:17 +0100
+
+picocom (1.4-1) unstable; urgency=low
+
+  * new upstream version:
+    - Changed the behavior of the C-a command. Now pressing C-a
+	 twice sends C-a to the serial port
+    - Added the C-\ command that generates a break sequence
+    - Added (optional) UUCP-lockfiles support
+
+ -- Oliver Kurth <oku@debian.org>  Tue, 14 Sep 2004 11:25:07 -0700
+
+picocom (1.3-1) unstable; urgency=low
+
+  * Initial Release (closes: #236044)
+  * upstream included my man page
+
+ -- Oliver Kurth <oku@debian.org>  Sun, 07 Mar 2004 19:43:34 -0800
+

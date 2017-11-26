@@ -1,0 +1,22 @@
+Source: picocom
+Section: comm
+Priority: optional
+Maintainer: Matt Palmer <mpalmer@debian.org>
+Uploaders: W. Martin Borgert <debacle@debian.org>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+Homepage: http://code.google.com/p/picocom/
+Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/picocom.git
+Vcs-Git: https://anonscm.debian.org/git/collab-maint/picocom.git
+
+Package: picocom
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: minimal dumb-terminal emulation program
+ picocom was designed to serve as a simple, manual, modem
+ configuration, testing, and debugging tool. It has also served (quite
+ well) as a low-tech "terminal-window" to allow operator intervention
+ in PPP connection scripts (something like the ms-windows "open
+ terminal window before / after dialing" feature). It could also prove
+ useful in many other similar tasks. It is ideal for embedded systems
+ since its memory footprint is minimal.
