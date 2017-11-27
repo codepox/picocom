@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA 
+ * USA
  */
 
 #include <stdlib.h>
@@ -51,10 +51,10 @@
 #define KEY_PULSE   '\x10' /* C-p: pulse DTR */
 #define KEY_TOGGLE  '\x14' /* C-t: toggle DTR */
 #define KEY_BAUD_UP '\x15' /* C-u: increase baudrate (up) */
-#define KEY_BAUD_DN '\x04' /* C-d: decrase baudrate (down) */ 
-#define KEY_FLOW    '\x06' /* C-f: change flowcntrl mode */ 
-#define KEY_PARITY  '\x19' /* C-y: change parity mode */ 
-#define KEY_BITS    '\x02' /* C-b: change number of databits */ 
+#define KEY_BAUD_DN '\x04' /* C-d: decrase baudrate (down) */
+#define KEY_FLOW    '\x06' /* C-f: change flowcntrl mode */
+#define KEY_PARITY  '\x19' /* C-y: change parity mode */
+#define KEY_BITS    '\x02' /* C-b: change number of databits */
 #define KEY_STATUS  '\x16' /* C-v: show program option */
 #define KEY_SEND    '\x13' /* C-s: send file */
 #define KEY_RECEIVE '\x12' /* C-r: receive file */
@@ -146,12 +146,12 @@ uucp_lock(void)
 
 	fd = open(lockname, O_RDONLY);
 	if ( fd >= 0 ) {
-		r = read(fd, buf, sizeof(buf)); 
+		r = read(fd, buf, sizeof(buf));
 		close(fd);
 		/* if r == 4, lock file is binary (old-style) */
 		pid = (r == 4) ? *(int *)buf : strtol(buf, NULL, 10);
-		if ( pid > 0 
-			 && kill((pid_t)pid, 0) < 0 
+		if ( pid > 0
+			 && kill((pid_t)pid, 0) < 0
 			 && errno == ESRCH ) {
 			/* stale lock file */
 			printf("Removing stale lock: %s\n", lockname);
@@ -189,7 +189,7 @@ uucp_unlock(void)
 ssize_t
 writen_ni(int fd, const void *buff, size_t n)
 {
-	size_t nl; 
+	size_t nl;
 	ssize_t nw;
 	const char *p;
 
@@ -203,7 +203,7 @@ writen_ni(int fd, const void *buff, size_t n)
 		nl -= nw;
 		p += nw;
 	}
-	
+
 	return n - nl;
 }
 
@@ -213,12 +213,12 @@ fd_printf (int fd, const char *format, ...)
 	char buf[256];
 	va_list args;
 	int len;
-	
+
 	va_start(args, format);
 	len = vsnprintf(buf, sizeof(buf), format, args);
 	buf[sizeof(buf) - 1] = '\0';
 	va_end(args);
-	
+
 	return writen_ni(fd, buf, len);
 }
 
@@ -231,12 +231,12 @@ fatal (const char *format, ...)
 
 	term_reset(STO);
 	term_reset(STI);
-	
+
 	va_start(args, format);
 	len = vsnprintf(buf, sizeof(buf), format, args);
 	buf[sizeof(buf) - 1] = '\0';
 	va_end(args);
-	
+
 	s = "\r\nFATAL: ";
 	writen_ni(STO, s, strlen(s));
 	writen_ni(STO, buf, len);
@@ -249,7 +249,7 @@ fatal (const char *format, ...)
 #ifdef UUCP_LOCK_DIR
 	uucp_unlock();
 #endif
-	
+
 	exit(EXIT_FAILURE);
 }
 
@@ -261,9 +261,9 @@ fd_readline (int fdi, int fdo, char *b, int bsz)
 	int r;
 	unsigned char c;
 	unsigned char *bp, *bpe;
-	
-	bp = b;
-	bpe = b + bsz - 1;
+
+	bp = (unsigned char *)b;
+	bpe = (unsigned char *)b + bsz - 1;
 
 	while (1) {
 		r = read(fdi, &c, 1);
@@ -271,7 +271,7 @@ fd_readline (int fdi, int fdo, char *b, int bsz)
 
 		switch (c) {
 		case '\b':
-			if ( bp > (unsigned char *)b ) { 
+			if ( bp > (unsigned char *)b ) {
 				bp--;
 				cput(fdo, c); cput(fdo, ' '); cput(fdo, c);
 			} else {
@@ -280,7 +280,7 @@ fd_readline (int fdi, int fdo, char *b, int bsz)
 			break;
 		case '\r':
 			*bp = '\0';
-			r = bp - (unsigned char *)b; 
+			r = bp - (unsigned char *)b;
 			goto out;
 		default:
 			if ( bp < bpe ) { *bp++ = c; cput(fdo, c); }
@@ -304,7 +304,7 @@ baud_up (int baud)
 		baud = 300;
 	else if ( baud == 38400 )
 		baud = 57600;
-	else	
+	else
 		baud = baud * 2;
 	if ( baud > 115200 )
 		baud = 115200;
@@ -398,12 +398,12 @@ void
 establish_child_signal_handlers (void)
 {
 	struct sigaction empty_action;
-	
+
 	/* Set up the structure to specify the "empty" action. */
     empty_action.sa_handler = child_empty_handler;
 	sigemptyset (&empty_action.sa_mask);
 	empty_action.sa_flags = 0;
-	
+
 	sigaction (SIGINT, &empty_action, NULL);
 	sigaction (SIGTERM, &empty_action, NULL);
 }
@@ -435,8 +435,8 @@ run_cmd(int fd, ...)
 		/* reset terminal (back to raw mode) */
 		term_apply(STI);
 		/* check and report child return status */
-		if ( WIFEXITED(r) ) { 
-			fd_printf(STO, "\r\n*** exit status: %d\r\n", 
+		if ( WIFEXITED(r) ) {
+			fd_printf(STO, "\r\n*** exit status: %d\r\n",
 					  WEXITSTATUS(r));
 			return WEXITSTATUS(r);
 		} else {
@@ -456,7 +456,7 @@ run_cmd(int fd, ...)
 		/* unmanage serial port fd, without reset */
 		term_erase(fd);
 		/* set serial port fd to blocking mode */
-		fl = fcntl(fd, F_GETFL); 
+		fl = fcntl(fd, F_GETFL);
 		fl &= ~O_NONBLOCK;
 		fcntl(fd, F_SETFL, fl);
 		/* connect stdin and stdout to serial port */
@@ -470,7 +470,7 @@ run_cmd(int fd, ...)
 			const char *s;
 			int n;
 			va_list vls;
-			
+
 			c = cmd;
 			ce = cmd + sizeof(cmd) - 1;
 			va_start(vls, fd);
@@ -594,7 +594,7 @@ loop(void)
 					else
 						r = term_raise_dtr(tty_fd);
 					if ( r >= 0 ) dtr_up = ! dtr_up;
-					fd_printf(STO, "\r\n*** DTR: %s ***\r\n", 
+					fd_printf(STO, "\r\n*** DTR: %s ***\r\n",
 							  dtr_up ? "up" : "down");
 					break;
 				case KEY_BAUD_UP:
@@ -629,7 +629,7 @@ loop(void)
 						opts.parity = newparity;
 						opts.parity_str = newparity_str;
 					}
-					fd_printf(STO, "\r\n*** parity: %s ***\r\n", 
+					fd_printf(STO, "\r\n*** parity: %s ***\r\n",
 							  opts.parity_str);
 					break;
 				case KEY_BITS:
@@ -637,7 +637,7 @@ loop(void)
 					term_set_databits(tty_fd, newbits);
 					tty_q.len = 0; term_flush(tty_fd);
 					if ( term_apply(tty_fd) >= 0 ) opts.databits = newbits;
-					fd_printf(STO, "\r\n*** databits: %d ***\r\n", 
+					fd_printf(STO, "\r\n*** databits: %d ***\r\n",
 							  opts.databits);
 					break;
 				case KEY_SEND:
@@ -717,18 +717,15 @@ loop(void)
 
 				if((c != '\n') && (c != '\r')) {
 					diff_sec = tv.tv_sec - tv_ref.tv_sec;
-					if(tv.tv_usec/1000 < tv_ref.tv_usec/1000)
-					{
+					if(tv.tv_usec/1000 < tv_ref.tv_usec/1000) {
 						diff_sec--;
 						diff_msec = (1000 + (tv.tv_usec/1000)) - (tv_ref.tv_usec/1000);
-					}
-					else
-					{
+					} else {
 						diff_msec = (tv.tv_usec - tv_ref.tv_usec) / 1000;
 					}
-					sprintf(s,"%3d.%03d ",diff_sec%1000,diff_msec);
+					sprintf(s,"\x1B[36m" "%d:%02d.%03d " "\x1B[0m",diff_sec/60,diff_sec%60,diff_msec);
 					//sprintf(s,"%03d.%04d",(int)(tv.tv_sec-tty_timeref),(int)(tv.tv_usec/1000));
-					write(STO, s, 8);
+					write(STO, s, strlen(s));
 					tty_time = TTY_TIME_NONE;
 				}
 			}
@@ -736,7 +733,7 @@ loop(void)
 
 			do {
 				n = write(STO, &c, 1);
-			} while ( errno == EAGAIN 
+			} while ( errno == EAGAIN
 					  || errno == EWOULDBLOCK
 					  || errno == EINTR );
 			if ( n <= 0 )
@@ -788,7 +785,7 @@ establish_signal_handlers (void)
 
         sigaction (SIGTERM, &exit_action, NULL);
 
-        sigaction (SIGINT, &ign_action, NULL); 
+        sigaction (SIGINT, &ign_action, NULL);
         sigaction (SIGHUP, &ign_action, NULL);
         sigaction (SIGALRM, &ign_action, NULL);
         sigaction (SIGUSR1, &ign_action, NULL);
@@ -1026,16 +1023,16 @@ main(int argc, char *argv[])
 					 !opts.noreset); /* hup-on-close. */
 	}
 	if ( r < 0 )
-		fatal("failed to add device %s: %s", 
+		fatal("failed to add device %s: %s",
 			  opts.port, term_strerror(term_errno, errno));
 	r = term_apply(tty_fd);
 	if ( r < 0 )
-		fatal("failed to config device %s: %s", 
+		fatal("failed to config device %s: %s",
 			  opts.port, term_strerror(term_errno, errno));
-	
+
 	r = term_add(STI);
 	if ( r < 0 )
-		fatal("failed to add I/O device: %s", 
+		fatal("failed to add I/O device: %s",
 			  term_strerror(term_errno, errno));
 	term_set_raw(STI);
 	r = term_apply(STI);
