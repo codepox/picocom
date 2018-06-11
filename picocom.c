@@ -38,6 +38,7 @@
 #include <sys/wait.h>
 #include <limits.h>
 #include <sys/time.h>
+#include <time.h>			// localtime
 
 #define _GNU_SOURCE
 #include <getopt.h>
@@ -523,7 +524,7 @@ loop(void)
 	unsigned char c;
 	struct timeval tv,tv_ref;
 	unsigned int diff_sec,diff_msec;
-	char s[32];
+	char s[64];
 
 
 	tty_q.len = 0;
@@ -567,6 +568,7 @@ loop(void)
 				state = ST_TRANSPARENT;
 				switch (c) {
 				case KEY_EXIT:
+				case 'x':			// <wong> 2018-06-07 allow [C-a] [x] to terminate the program too
 					return;
 				case KEY_QUIT:
 					term_set_hupcl(tty_fd, 0);
@@ -665,7 +667,9 @@ loop(void)
 					term_break(tty_fd);
 					fd_printf(STO, "\r\n*** break sent ***\r\n");
 					break;
+				case 'N':			// <wong> 2018-06-07 allow [C-a] [N] to toggle timestamp (same as minicom)
 				case KEY_TIMESTAMP:
+#if	0	///NOTE: change to 3-way timestamp (off, delta-time, wall-clock-time)
 					if(tty_time_enable) {
 						tty_time_enable = 0;
 						fd_printf(STO, "\r\n*** Time Stamp Disable ***\r\n");
@@ -674,6 +678,16 @@ loop(void)
 						tty_time = TTY_TIME_RESET;
 						fd_printf(STO, "\r\n*** Time Stamp Enable ***\r\n");
 					}
+#else
+					tty_time_enable = (tty_time_enable + 1) % 3;
+					if (tty_time_enable == 0) {
+						fd_printf(STO, "\r\n*** Time Stamp Disable ***\r\n");
+					}
+					else {
+						tty_time = TTY_TIME_RESET;
+						fd_printf(STO, "\r\n*** Time Stamp Enable (mode=%d) ***\r\n", tty_time_enable);
+					}
+#endif
                     break;
 				default:
 					break;
@@ -710,12 +724,14 @@ loop(void)
 				fatal("read from term failed: %s", strerror(errno));
 
 			if(tty_time_enable && tty_time) {
-                gettimeofday(&tv,NULL);
+				gettimeofday(&tv,NULL);
 				if(tty_time == TTY_TIME_RESET) {
 					tv_ref = tv;
 				}
 
 				if((c != '\n') && (c != '\r')) {
+//
+			if (tty_time_enable == 1) {				// delta time
 					diff_sec = tv.tv_sec - tv_ref.tv_sec;
 					if(tv.tv_usec/1000 < tv_ref.tv_usec/1000) {
 						diff_sec--;
@@ -725,6 +741,13 @@ loop(void)
 					}
 					sprintf(s,"\x1B[36m" "%d:%02d.%03d " "\x1B[0m",diff_sec/60,diff_sec%60,diff_msec);
 					//sprintf(s,"%03d.%04d",(int)(tv.tv_sec-tty_timeref),(int)(tv.tv_usec/1000));
+//
+			} else if (tty_time_enable == 2) {		///NOTE: timestamp as YYYY-MM-DD hh:mm:ss.zzz
+					time_t curTime = time(NULL);
+					struct tm *now = localtime(&curTime);
+					sprintf(s,"\x1B[36m" "[%04d-%02d-%02d %02d:%02d:%02d.%03d] " "\x1B[0m",now->tm_year+1900,now->tm_mon+1,now->tm_mday,now->tm_hour,now->tm_min,now->tm_sec,(int)(tv.tv_usec/1000));
+			}
+//
 					write(STO, s, strlen(s));
 					tty_time = TTY_TIME_NONE;
 				}
