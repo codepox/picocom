@@ -13,6 +13,9 @@ CFLAGS = -Wall -g
 LDFLAGS = -g
 LDLIBS =
 
+SRCS=picocom.c term.c split.c
+OBJS=$(SRCS:.c=.o)
+
 picocom : picocom.o term.o split.o
 #	$(LD) $(LDFLAGS) -o $@ $+ $(LDLIBS)
 
@@ -35,7 +38,8 @@ picocom.8.ps : picocom.8
 	groff -mandoc -Tps $< > $@
 
 clean:
-	rm -f picocom.o term.o
+#	rm -f picocom.o term.o
+	rm -f $(OBJS)
 	rm -f *~
 	rm -f \#*\#
 
