@@ -262,8 +262,8 @@ fd_readline (int fdi, int fdo, char *b, int bsz)
 	unsigned char c;
 	unsigned char *bp, *bpe;
 	
-	bp = b;
-	bpe = b + bsz - 1;
+	bp = (unsigned char*)b;
+	bpe = (unsigned char*)b + bsz - 1;
 
 	while (1) {
 		r = read(fdi, &c, 1);
@@ -726,9 +726,10 @@ loop(void)
 					{
 						diff_msec = (tv.tv_usec - tv_ref.tv_usec) / 1000;
 					}
-					sprintf(s,"%3d.%03d ",diff_sec%1000,diff_msec);
+					sprintf(s,"\x1B[36m%d:%02d.%03d \x1B[0m",diff_sec/60,diff_sec%60,diff_msec);
+					//sprintf(s,"%3d.%03d ",diff_sec%1000,diff_msec);
 					//sprintf(s,"%03d.%04d",(int)(tv.tv_sec-tty_timeref),(int)(tv.tv_usec/1000));
-					write(STO, s, 8);
+					write(STO, s, strlen(s));
 					tty_time = TTY_TIME_NONE;
 				}
 			}
